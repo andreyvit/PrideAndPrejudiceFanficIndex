@@ -1,0 +1,6 @@
+*.sublime-project
+*.sublime-workspace
+node_modules
+scraper/*.html
+*.js
+stories.json

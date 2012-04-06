@@ -1,0 +1,16 @@
+{
+  "author": "Andrey Tarantsov <andreyvit@me.com>",
+  "name": "PrideAndPrejudice",
+  "version": "0.0.0",
+  "repository": {
+    "url": ""
+  },
+  "engines": {
+    "node": "~0.5.5"
+  },
+  "dependencies": {
+    "apricot": "0.0.5",
+    "sugar": "~1.2.4"
+  },
+  "devDependencies": {}
+}

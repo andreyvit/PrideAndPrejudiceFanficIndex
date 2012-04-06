@@ -1,0 +1,21 @@
+!!!
+html
+  head
+    title= title
+    link(rel='stylesheet', href='/bootstrap/css/bootstrap.min.css')
+    link(rel='stylesheet', href='/stylesheets/style.css')
+  body
+    .container
+      .page-header
+        ul.breadcrumb
+          for breadcrumb in view.breadcrumbs
+            if breadcrumb.active
+              li.active
+                = breadcrumb.title
+            else
+              li
+                a(href=breadcrumb.url)
+                  = breadcrumb.title
+                  span.divider
+        h1= header
+      != body

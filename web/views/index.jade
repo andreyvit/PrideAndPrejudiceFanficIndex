@@ -1,0 +1,42 @@
+
+if view.categories.length > 0
+  h2
+    | Subcategories
+    span.badge #{view.categories.length}
+
+  ul
+    for category in view.categories
+      li
+        a(href=category.url) #{category.name} (#{category.storyCount})
+
+h2
+  | Stories
+  span.badge #{view.stories.length}
+
+if view.stories.length < 200
+  dl
+    for story in view.stories
+      dt
+        #{story.name}
+        if story.words
+          | (#{story.words})
+        for source in story.sources
+          |  —
+          a(href=source.href)= source.name
+      dd
+        for para in story.description
+          p= para
+        if story.categories.length > 0
+          p
+            small
+              for category, i in story.categories
+                if i > 0
+                  | •
+                span(class="category category-#{category.isActive ? 'active' : 'inactive'}")
+                  a(href=category.topLevelUrl)
+                    #{category.name}
+                  | (#{category.overallStoryCount})
+
+
+else
+  p …Too many stories to show, pick some categories first.

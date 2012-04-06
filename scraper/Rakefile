@@ -1,0 +1,21 @@
+
+desc "Screen-scrape the data from jaffindex.com"
+task :download do
+    puts "Logging in..."
+    php_sess_id = `node main.js`.strip
+    # php_sess_id = '2df92dee4fc68c37c74f5d35718d6e2f'
+    unless php_sess_id =~ /^[a-z0-9]{32}$/
+        puts "Failed to log in: main.js returned '#{php_sess_id}'"
+        exit 1
+    end
+    puts "PHPSESSID=#{php_sess_id}"
+    puts "Searching..."
+    sh "curl -b PHPSESSID=#{php_sess_id} -d inclall=1 -d sel_cmplstat=0 -d sel_cmplstat=C -d astryexts=List%20Stories -o results.html http://www.jaffindex.com/ff_eselresultdisp.php"
+end
+
+desc "Parse"
+task :parse do
+    sh 'node', 'parse.js'
+end
+
+# --cookie
