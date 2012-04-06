@@ -61,6 +61,15 @@ class Story
     else if @json.sources.map('color').indexOf('steamy') >= 0
       @categoryNames.push 'Steamy'
 
+    if @era is 'R'
+      @categoryNames.push 'Regency'
+    else if @era is 'M'
+      @categoryNames.push 'Modern'
+    else if @era is 'O'
+      @categoryNames.push 'Other Past'
+    else if @era is 'F'
+      @categoryNames.push 'Future'
+
 
 
 module.exports = do ->
