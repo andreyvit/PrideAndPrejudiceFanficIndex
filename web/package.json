@@ -1,10 +1,11 @@
 {
-  "name": "application-name",
+  "name": "pride-and-prejudice-fanfic-index",
   "version": "0.0.1",
   "private": true,
   "dependencies": {
     "express": "2.5.8",
     "jade": ">= 0.0.1",
-    "sugar": "~1.2.4"
+    "sugar": "~1.2.4",
+    "coffee-script": "~1.2.0"
   }
 }
