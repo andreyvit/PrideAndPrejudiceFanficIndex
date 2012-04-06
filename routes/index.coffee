@@ -55,7 +55,7 @@ class View
       category.subviewUrl = @subview(category.permalink).toURL()
 
     maxStoryCount = @categories.map('storyCount').max()
-    @categories = @categories.filter((c) => !c.isUseless && (c.storyCount > Math.max(1, maxStoryCount / 20)))
+    @categories = @categories.filter((c) => !c.isUseless && (c.storyCount > 1))
 
     for story in @stories
       story.url = "/s/#{story.permalink}"
