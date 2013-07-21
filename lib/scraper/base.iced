@@ -10,6 +10,8 @@ moment  = require 'moment'
 
 { Apricot } = require 'apricot'
 
+$A = _.toArray
+
 
 siblingsAfter = (el, condition=(-> yes)) ->
   while (el = el.nextSibling)? and condition(el) when el.nodeType == 1
@@ -69,7 +71,7 @@ class Scraper
   prepare: (callback) ->
     if @config.quick and (savedCookies = @loadData("cookies.txt"))
       @browser.loadCookies(savedCookies)
-      debug "Using cached cookies: #{JSON.stringify(_.pick(@browser.cookies().all(), 'key', 'value'), null, 2)}"
+      debug "Using cached cookies: #{JSON.stringify(_.pick(@browser.cookies, 'key', 'value'), null, 2)}"
       callback(null)
     else
       @login callback
@@ -85,15 +87,18 @@ class Scraper
 
     debug "Filling in login form..."
     @browser
-      .fill("username", @credentials.user)
-      .fill("password", @credentials.password)
+      .fill("ips_username", @credentials.user)
+      .fill("ips_password", @credentials.password)
 
     await @browser.pressButton "Sign In", defer()
     @saveData 'after_login.html', @browser.html()
-    return callback("Failed to submit the login page") unless @browser.success
+    unless @browser.success
+      @browser.dump()
+      console.log "Response: " + @browser.lastResponse
+      return callback("Failed to submit the login page: statusCode = #{@browser.statusCode}")
 
-    debug "Obtained cookies: #{JSON.stringify(_.pick(@browser.cookies().all(), 'key', 'value'), null, 2)}"
-    debug "Cookies = %j", @browser.cookies().all()
+    debug "Obtained cookies: #{JSON.stringify(_.pick(@browser.cookies, 'key', 'value'), null, 2)}"
+    debug "Cookies = %j", @browser.cookies
     @saveData "cookies.txt", @browser.saveCookies()
 
     callback(null)
@@ -103,42 +108,75 @@ class Scraper
     await @loadAndParse 'index.html', "#{@baseUrl}?showforum=5", defer(err, doc)
     return callback(err) if err
 
-    topicsHeaderRow = _.find doc.find('tr.subhead.altbar').matches, (tr) => tr.textContent.trim().match /Forum Topics/
-    if !topicsHeaderRow then return callback(new Error("Cannot find Forum Topics row"))
+    topicListTable = doc.document.querySelector('.topic_list')
+    if !topicListTable then return callback(new Error("Cannot find .topic_list table"))
 
-    topicRows = siblingsAfter(topicsHeaderRow).slice(1)
+    topicRows = $A topicListTable.querySelectorAll('tr[itemtype="http://schema.org/Article"]')
+    console.log "topicRows.length = %d", topicRows
     if topicRows.length is 0 then return callback(new Error("Cannot find topic rows"))
+
+    # topicsHeaderRow = _.find doc.find('tr.subhead.altbar').matches, (tr) => tr.textContent.trim().match /Forum Topics/
+    # if !topicsHeaderRow then return callback(new Error("Cannot find Forum Topics row"))
+
+    # topicRows = siblingsAfter(topicsHeaderRow).slice(1)
 
     topics = []
     for topicRow in topicRows
-      cells = _.toArray topicRow.getElementsByTagName('td')
-      topicLink  = _.toArray(cells[1].getElementsByClassName('topic_title'))[0]
-      authorLink = _.toArray(cells[2].getElementsByTagName('a'))[0]
-      viewsEl    = _.toArray(cells[3].getElementsByTagName('li'))[1]
-      dateEl     = _.toArray(cells[4].getElementsByTagName('li'))[0]
-      if topicLink and authorLink and viewsEl and dateEl
-        date = dateOrig = dateEl.textContent.trim()
-        date = date.replace /^Today,/, -> moment.utc().format('MMM DD YYYY')
-        date = date.replace /^Yesterday,/, -> moment.utc().subtract('days', 1).format('MMM DD YYYY')
+      { topic, message } = @processTopicRow(topicRow)
 
-        date = moment.utc(date, 'MMM DD YYYY hh:mm a')
+      unless topic
+        console.log "Skipping row: %s", message #, topicRow.textContent.trim().substr(0, 100).replace(/\s{2,}/g, ' ')
 
-        topic =
-          id:    topicRow.id.replace(/^trow_/, '')
-          title: topicLink.textContent.trim()
-          url:   topicLink.getAttribute('href').trim()
-          views: parseInt(viewsEl.textContent.replace(/[^0-9]/g, ''), 10)
-          author: authorLink.textContent.trim()
-          authorUrl: authorLink.getAttribute('href').trim()
-          lastUpdate: date.unix()
-          lastUpdateFmt: date.format('YYYY-MM-DD HH:mm:ss')
-          lastUpdateOrig: dateOrig
+      if topic
         debug "Found topic %s", JSON.stringify(topic, null, 2)
         topics.push topic
-      else
-        debug "Cannot find topic topicLink in row: #{topicRow.html}"
 
     callback(null, topics)
+
+  processTopicRow: (topicRow) ->
+    unless topicTitleLink = topicRow.querySelector('td.col_f_content a.topic_title')
+      return message: "cannot find topic title"
+
+    unless topicTitle = topicTitleLink.textContent.trim()
+      return message: "empty topic title"
+
+    unless topicURL = topicTitleLink.href?.trim()
+      return message: "cannot find topic URL"
+
+    unless topicId = topicRow.id?.replace(/^trow_/, '')
+      return message: "cannot find topic ID"
+
+    if isPinned = $A(topicRow.querySelectorAll('span')).some((span) -> span.textContent.trim().toLowerCase() == 'pinned')
+      return message: "skipping pinned topic '#{topicTitle}'"
+
+    posts = null
+    for meta in $A(topicRow.querySelectorAll('meta[itemprop=interactionCount]'))
+      if M = meta.content?.match(/^UserComments:(\d+)$/)
+        posts = 1 + parseInt(M[1], 10)
+
+    if viewsText = topicRow.querySelector('.views')?.textContent
+      views = parseInt(viewsText, 10)
+    else
+      views = null
+
+    # date = dateOrig = dateEl.textContent.trim()
+    # date = date.replace /^Today,/, -> moment.utc().format('MMM DD YYYY')
+    # date = date.replace /^Yesterday,/, -> moment.utc().subtract('days', 1).format('MMM DD YYYY')
+
+    # date = moment.utc(date, 'MMM DD YYYY hh:mm a')
+
+    topic =
+      id:    topicId
+      title: topicTitle
+      url:   topicURL
+      posts: posts
+      views: views
+      # author: authorLink.textContent.trim()
+      # authorUrl: authorLink.getAttribute('href').trim()
+      # lastUpdate: date.unix()
+      # lastUpdateFmt: date.format('YYYY-MM-DD HH:mm:ss')
+      # lastUpdateOrig: dateOrig
+    return { topic }
 
 
   loadTopicPage: (topic, page, callback) ->
@@ -209,7 +247,9 @@ class Scraper
 
     for topic, index in topics.slice(0, 10)
       debug "Loading topic #{index+1}: #{topic.title} by #{topic.author}"
-      await @loadTopic topic.id, defer(err)
+      await @loadTopic topic.id, defer(err, topicData)
       return callback(err) if err
+
+      _.extend topicData, topic
 
     callback(null)
