@@ -9,8 +9,8 @@
     "node": "~0.5.5"
   },
   "dependencies": {
-    "apricot": "0.0.5",
-    "sugar": "~1.2.4"
+    "apricot": "0.0.6",
+    "sugar": "~2.0.4"
   },
   "devDependencies": {}
 }
